@@ -5,6 +5,7 @@ import { buildLoginMainView } from "./login";
 import { buildCardActionsView } from "./card_actions";
 import { State } from "../models/state";
 import { actionCall } from "./helpers";
+import { getSalesEnabled } from "../services/app_properties";
 import { _t } from "../services/translation";
 
 export function buildView(state: State) {
@@ -16,7 +17,11 @@ export function buildView(state: State) {
 
     buildPartnerView(state, card);
 
-    buildCompanyView(state, card);
+    // Company Insights & enrichment are sales features, hidden unless the user
+    // has opted in via the "Sales tools" toggle in the three-dots menu.
+    if (getSalesEnabled()) {
+        buildCompanyView(state, card);
+    }
 
     buildCardActionsView(state, card);
 

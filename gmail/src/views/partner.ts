@@ -6,7 +6,7 @@ import { updateCard } from "./helpers";
 import { UI_ICONS } from "./icons";
 import { createKeyValueWidget, actionCall, notify } from "./helpers";
 import { URLS } from "../const";
-import { getOdooServerUrl } from "src/services/app_properties";
+import { getOdooServerUrl, getSalesEnabled } from "src/services/app_properties";
 import { State } from "../models/state";
 import { Partner } from "../models/partner";
 import { ErrorMessage } from "../models/error_message";
@@ -119,7 +119,11 @@ export function buildPartnerView(state: State, card: Card) {
     card.addSection(partnerSection);
 
     if (canContactOdooDatabase) {
-        buildLeadsView(state, card);
+        // Opportunities are a sales feature — only show when the user opted in.
+        // Tasks (project management) are always shown.
+        if (getSalesEnabled()) {
+            buildLeadsView(state, card);
+        }
         buildTasksView(state, card);
     }
 

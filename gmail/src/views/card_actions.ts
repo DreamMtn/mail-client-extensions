@@ -3,6 +3,7 @@ import { buildView } from "../views/index";
 import { State } from "../models/state";
 import { Partner } from "../models/partner";
 import { resetAccessToken } from "../services/odoo_auth";
+import { getSalesEnabled, setSalesEnabled } from "../services/app_properties";
 import { _t, clearTranslationCache } from "../services/translation";
 import { actionCall } from "./helpers";
 import { pushToRoot } from "./helpers";
@@ -28,12 +29,30 @@ function onLogout(state: State) {
     return pushToRoot(buildView(newState));
 }
 
+/**
+ * Toggle the per-user "Sales tools" preference from the three-dots menu.
+ * Off (the default) shows project management only; on reveals Opportunities,
+ * Company Insights and enrichment. Rebuilt at root so the change shows at once.
+ */
+function onToggleSales(state: State) {
+    setSalesEnabled(!getSalesEnabled());
+    return pushToRoot(buildView(state));
+}
+
 export function buildCardActionsView(state: State, card: Card) {
     const canContactOdooDatabase = state.error.canContactOdooDatabase && State.isLogged;
 
     if (State.isLogged) {
         card.addCardAction(
             CardService.newCardAction().setText(_t("Logout")).setOnClickAction(actionCall(state, onLogout.name)),
+        );
+    }
+
+    if (canContactOdooDatabase) {
+        card.addCardAction(
+            CardService.newCardAction()
+                .setText(getSalesEnabled() ? _t("Disable Sales tools") : _t("Enable Sales tools"))
+                .setOnClickAction(actionCall(state, onToggleSales.name)),
         );
     }
 

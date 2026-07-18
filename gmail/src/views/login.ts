@@ -13,10 +13,6 @@ function onNextLogin(event) {
         return notify("Invalid URL");
     }
 
-    if (!/^https:\/\/([^\/?]*\.)?odoo\.com(\/|$)/.test(validatedUrl)) {
-        return notify("The URL must be a subdomain of odoo.com");
-    }
-
     clearTranslationCache();
 
     setOdooServerUrl(validatedUrl);
@@ -53,44 +49,35 @@ export function buildLoginMainView() {
 
     const faqUrl = "https://www.odoo.com/documentation/master/applications/productivity/mail_plugins.html";
 
+    const logoUrl = "https://www.dreammtn.services/web/image/website/1/logo/Dream%20Mountain?unique=9869686";
+
     card.addSection(
         CardService.newCardSection()
             .addWidget(
-                CardService.newImage().setAltText("Connect to your Odoo database").setImageUrl(IMAGES_LOGIN.main_image),
+                CardService.newImage().setAltText("Connect to your Dream Mountain database").setImageUrl(logoUrl),
             )
             .addWidget(
                 CardService.newTextInput()
                     .setFieldName("odooServerUrl")
                     .setTitle("Database URL")
-                    .setHint("e.g. company.odoo.com")
+                    .setHint("e.g. company.dreammtn.services")
                     .setValue(PropertiesService.getUserProperties().getProperty("ODOO_SERVER_URL") || ""),
             )
             .addWidget(
                 CardService.newTextButton()
                     .setText(repeat(invisibleChar, 12) + "Login" + repeat(invisibleChar, 12))
                     .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
-                    .setBackgroundColor("#00A09D")
+                    .setBackgroundColor("#3B87C4")
                     .setOnClickAction(CardService.newAction().setFunctionName(onNextLogin.name)),
             )
             .addWidget(CardService.newTextParagraph().setText(repeat(invisibleChar, 13) + "<b>OR</b>"))
             .addWidget(
                 CardService.newTextButton()
-                    .setText(repeat(invisibleChar, 11) + " Sign Up" + repeat(invisibleChar, 11))
-                    .setOpenLink(
-                        CardService.newOpenLink().setUrl(
-                            "https://www.odoo.com/trial?selected_app=mail_plugin:crm:helpdesk:project",
-                        ),
-                    ),
+                    .setText(repeat(invisibleChar, 10) + " Contact Us" + repeat(invisibleChar, 10))
+                    .setOpenLink(CardService.newOpenLink().setUrl("https://www.dreammtn.services/contactus")),
             )
             .addWidget(
                 createKeyValueWidget(null, "Create leads from emails sent to your email address.", IMAGES_LOGIN.email),
-            )
-            .addWidget(
-                createKeyValueWidget(
-                    null,
-                    "Create tickets from emails sent to your email address.",
-                    IMAGES_LOGIN.ticket,
-                ),
             )
             .addWidget(createKeyValueWidget(null, "Centralize Prospects' emails into CRM.", IMAGES_LOGIN.crm))
             .addWidget(

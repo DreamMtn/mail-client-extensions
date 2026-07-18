@@ -9,8 +9,6 @@ export const URLS: Record<string, string> = {
     ENRICH_COMPANY: "/mail_plugin/partner/enrich_and_update_company",
     // CRM Lead
     CREATE_LEAD: "/mail_plugin/lead/create",
-    // HELPDESK Ticket
-    CREATE_TICKET: "/mail_plugin/ticket/create",
     // Project
     SEARCH_PROJECT: "/mail_plugin/project/search",
     CREATE_PROJECT: "/mail_plugin/project/create",

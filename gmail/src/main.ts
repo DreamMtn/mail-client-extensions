@@ -11,7 +11,7 @@ import { _t } from "./services/translation";
  * domain of the op penned email.
  *
  * If the user is connected to a Odoo database, we will fetch the corresponding partner
- * and other information like his leads, tickets, company...
+ * and other information like his leads, tasks, company...
  */
 function onGmailMessageOpen(event) {
     GmailApp.setCurrentMessageAccessToken(event.messageMetadata.accessToken);
@@ -19,7 +19,7 @@ function onGmailMessageOpen(event) {
 
     const [partner, odooUserCompanies, canCreatePartner, canCreateProject, error] = Partner.enrichPartner(
         currentEmail.contactEmail,
-        currentEmail.contactName
+        currentEmail.contactName,
     );
 
     if (!partner) {
@@ -35,7 +35,7 @@ function onGmailMessageOpen(event) {
         null,
         null,
         canCreateProject,
-        error
+        error,
     );
 
     return [buildView(state)];

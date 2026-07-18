@@ -25,7 +25,7 @@ export function buildView(state: State) {
             CardService.newFixedFooter().setPrimaryButton(
                 CardService.newTextButton()
                     .setText(_t("Login"))
-                    .setBackgroundColor("#00A09D")
+                    .setBackgroundColor("#3B87C4")
                     .setOnClickAction(actionCall(state, buildLoginMainView.name)),
             ),
         );

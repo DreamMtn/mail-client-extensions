@@ -1,7 +1,6 @@
 import { Company } from "./company";
 import { Lead } from "./lead";
 import { Task } from "./task";
-import { Ticket } from "./ticket";
 import { postJsonRpc, postJsonRpcCached } from "../utils/http";
 import { URLS } from "../const";
 import { ErrorMessage } from "../models/error_message";
@@ -23,7 +22,6 @@ export class Partner {
 
     company: Company;
     leads: Lead[];
-    tickets: Ticket[];
     tasks: Task[];
 
     isWriteable: boolean;
@@ -47,10 +45,6 @@ export class Partner {
         partner.isWriteable = values.isWriteable;
 
         partner.leads = values.leads ? values.leads.map((leadValues: any) => Lead.fromJson(leadValues)) : null;
-
-        partner.tickets = values.tickets
-            ? values.tickets.map((ticketValues: any) => Ticket.fromJson(ticketValues))
-            : null;
 
         partner.tasks = values.tasks ? values.tasks.map((taskValues: any) => Task.fromJson(taskValues)) : null;
 
@@ -191,11 +185,6 @@ export class Partner {
         // Parse leads
         if (response.leads) {
             partner.leads = response.leads.map((leadValues: any) => Lead.fromOdooResponse(leadValues));
-        }
-
-        // Parse tickets
-        if (response.tickets) {
-            partner.tickets = response.tickets.map((ticketValues: any) => Ticket.fromOdooResponse(ticketValues));
         }
 
         // Parse tasks

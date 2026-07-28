@@ -1,6 +1,7 @@
 import { Company } from "./company";
 import { Lead } from "./lead";
 import { Task } from "./task";
+import { Project } from "./project";
 import { postJsonRpc, postJsonRpcCached } from "../utils/http";
 import { URLS } from "../const";
 import { ErrorMessage } from "../models/error_message";
@@ -23,6 +24,8 @@ export class Partner {
     company: Company;
     leads: Lead[];
     tasks: Task[];
+    // Projects linked to this customer, suggested in the "Create Task" view.
+    suggestedProjects: Project[];
 
     isWriteable: boolean;
 
@@ -47,6 +50,10 @@ export class Partner {
         partner.leads = values.leads ? values.leads.map((leadValues: any) => Lead.fromJson(leadValues)) : null;
 
         partner.tasks = values.tasks ? values.tasks.map((taskValues: any) => Task.fromJson(taskValues)) : null;
+
+        partner.suggestedProjects = values.suggestedProjects
+            ? values.suggestedProjects.map((projectValues: any) => Project.fromJson(projectValues))
+            : null;
 
         return partner;
     }
@@ -190,6 +197,13 @@ export class Partner {
         // Parse tasks
         if (response.tasks) {
             partner.tasks = response.tasks.map((taskValues: any) => Task.fromOdooResponse(taskValues));
+        }
+
+        // Parse the customer's projects, suggested in the "Create Task" view
+        if (response.projects) {
+            partner.suggestedProjects = response.projects.map((projectValues: any) =>
+                Project.fromOdooResponse(projectValues),
+            );
         }
         const canCreateProject = response.can_create_project !== false;
 

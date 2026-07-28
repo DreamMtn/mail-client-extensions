@@ -21,24 +21,8 @@ function onSearchProjectClick(state: State, parameters: any, inputs: any) {
 
     const createTaskView = buildCreateTaskView(state, query, true);
 
-    // If go back, show again the "Create Project" section, but do not show all old searches
+    // First search pushes a results card; refining the query updates it in place.
     return parameters.hideCreateProjectSection ? updateCard(createTaskView) : pushCard(createTaskView);
-}
-
-function onCreateProjectClick(state: State, parameters: any, inputs: any) {
-    const inputQuery = inputs.new_project_name;
-    const projectName = (inputQuery && inputQuery.length && inputQuery[0]) || "";
-
-    if (!projectName || !projectName.length) {
-        return notify(_t("The project name is required"));
-    }
-
-    const project = Project.createProject(projectName);
-    if (!project) {
-        return notify(_t("Could not create the project"));
-    }
-
-    return onSelectProject(state, { project: project });
 }
 
 function onSelectProject(state: State, parameters: any) {
@@ -65,11 +49,20 @@ function onSelectProject(state: State, parameters: any) {
 
 export function buildCreateTaskView(state: State, query: string = "", hideCreateProjectSection: boolean = false) {
     let noProject = false;
+    const suggestedProjects = state.partner.suggestedProjects;
     if (!state.searchedProjects) {
-        // Initiate the search
-        [state.searchedProjects, state.error] = Project.searchProject("");
+        // Default to the customer's own projects so no search is needed; only
+        // fall back to a general project list if this customer has none linked.
+        if (suggestedProjects && suggestedProjects.length) {
+            state.searchedProjects = suggestedProjects;
+        } else {
+            [state.searchedProjects, state.error] = Project.searchProject("");
+        }
         noProject = !state.searchedProjects.length;
     }
+
+    // We are showing the customer's own projects when nothing was typed to search.
+    const showingSuggestions = !query && !!suggestedProjects && suggestedProjects.length > 0;
 
     const odooServerUrl = getOdooServerUrl();
     const partner = state.partner;
@@ -107,6 +100,12 @@ export function buildCreateTaskView(state: State, query: string = "", hideCreate
 
         if (!projects.length) {
             projectSection.addWidget(CardService.newTextParagraph().setText(_t("No project found.")));
+        } else if (showingSuggestions) {
+            projectSection.addWidget(
+                CardService.newTextParagraph().setText(
+                    "<font color='#777777'>" + _t("Projects linked to this customer") + "</font>",
+                ),
+            );
         }
         for (let project of projects) {
             const projectCard = createKeyValueWidget(
@@ -123,22 +122,7 @@ export function buildCreateTaskView(state: State, query: string = "", hideCreate
         card.addSection(projectSection);
     }
 
-    if (!hideCreateProjectSection && state.canCreateProject) {
-        const createProjectSection = CardService.newCardSection().setHeader(
-            "<b>" + _t("Create a Task in a new Project") + "</b>",
-        );
-
-        createProjectSection.addWidget(
-            CardService.newTextInput().setFieldName("new_project_name").setTitle(_t("Project Name")).setValue(""),
-        );
-
-        createProjectSection.addWidget(
-            CardService.newTextButton()
-                .setText(_t("Create Project & Task"))
-                .setOnClickAction(actionCall(state, onCreateProjectClick.name)),
-        );
-        card.addSection(createProjectSection);
-    } else if (noProject) {
+    if (noProject) {
         const noProjectSection = CardService.newCardSection();
 
         noProjectSection.addWidget(CardService.newImage().setImageUrl(UI_ICONS.empty_folder));

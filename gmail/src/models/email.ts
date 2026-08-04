@@ -1,3 +1,4 @@
+import { embedInlineImages } from "../utils/inline_images";
 import { ErrorMessage } from "../models/error_message";
 
 /**
@@ -11,6 +12,11 @@ export class Email {
     contactEmail: string;
     contactFullEmail: string;
     contactName: string;
+
+    // Raw FROM / TO / CC headers, used to find everyone taking part in the email.
+    fromHeaders: string;
+    toHeaders: string;
+    ccHeaders: string;
 
     constructor(messageId: string = null, accessToken: string = null) {
         if (messageId) {
@@ -26,6 +32,10 @@ export class Email {
             const sent = fromHeaders.toLowerCase().indexOf(userEmail) >= 0;
             this.contactFullEmail = sent ? message.getTo() : message.getFrom();
             [this.contactName, this.contactEmail] = this._emailSplitTuple(this.contactFullEmail);
+
+            this.fromHeaders = fromHeaders;
+            this.toHeaders = message.getTo();
+            this.ccHeaders = message.getCc();
         }
     }
 
@@ -35,7 +45,9 @@ export class Email {
     public get body() {
         GmailApp.setCurrentMessageAccessToken(this.accessToken);
         const message = GmailApp.getMessageById(this.messageId);
-        return message.getBody();
+        // The images pasted in the email are only referenced by the body, they
+        // must be embedded in it or Odoo will show broken images.
+        return embedInlineImages(message, message.getBody());
     }
 
     /**
@@ -82,7 +94,72 @@ export class Email {
         email.contactFullEmail = values.contactFullEmail;
         email.contactName = values.contactName;
 
+        email.fromHeaders = values.fromHeaders;
+        email.toHeaders = values.toHeaders;
+        email.ccHeaders = values.ccHeaders;
+
         return email;
+    }
+
+    /**
+     * Return the full email address ("Name <name@example.com>") of everyone
+     * taking part in the email: the sender and all the TO / CC recipients,
+     * minus the mailbox owner (who does not need to follow their own records).
+     */
+    getRecipients(): string[] {
+        const userEmail = Session.getEffectiveUser().getEmail().toLowerCase();
+        const headers = [this.fromHeaders, this.toHeaders, this.ccHeaders];
+        const recipients: string[] = [];
+        const alreadyAdded: Record<string, boolean> = {};
+
+        for (const header of headers) {
+            for (const fullEmail of this._splitAddressList(header)) {
+                const [_, address] = this._emailSplitTuple(fullEmail);
+                const key = address.toLowerCase();
+
+                if (key.indexOf("@") < 0 || key === userEmail || alreadyAdded[key]) {
+                    continue;
+                }
+
+                alreadyAdded[key] = true;
+                recipients.push(fullEmail);
+            }
+        }
+
+        return recipients;
+    }
+
+    /**
+     * Split a TO / CC header into its individual addresses.
+     *
+     * Commas are only separators outside of a quoted display name and outside
+     * of the angle brackets, so that e.g.
+     *     "Harris, Logan" <logan@example.com>, bob@example.com
+     * is 2 addresses and not 3.
+     */
+    _splitAddressList(header: string): string[] {
+        const addresses: string[] = [];
+        let current = "";
+        let inQuotes = false;
+        let inAngleBrackets = false;
+
+        for (const char of header || "") {
+            if (char === '"') {
+                inQuotes = !inQuotes;
+            } else if (!inQuotes && char === "<") {
+                inAngleBrackets = true;
+            } else if (!inQuotes && char === ">") {
+                inAngleBrackets = false;
+            } else if (char === "," && !inQuotes && !inAngleBrackets) {
+                addresses.push(current.trim());
+                current = "";
+                continue;
+            }
+            current += char;
+        }
+        addresses.push(current.trim());
+
+        return addresses.filter((address) => address.length > 0);
     }
 
     /**

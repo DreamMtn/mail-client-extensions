@@ -1,6 +1,8 @@
 export const URLS: Record<string, string> = {
     GET_TRANSLATIONS: "/mail_plugin/get_translations",
     LOG_EMAIL: "/mail_plugin/log_mail_content",
+    // Provided by our own "dms_mail_plugin" Odoo module, not by stock Odoo.
+    ADD_FOLLOWERS: "/dms_mail_plugin/record/subscribe",
     // Partner
     GET_PARTNER: "/mail_plugin/partner/get",
     SEARCH_PARTNER: "/mail_plugin/partner/search",

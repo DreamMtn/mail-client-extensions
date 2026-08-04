@@ -8,6 +8,7 @@ import { ErrorMessage } from "../models/error_message";
 import { Project } from "../models/project";
 import { State } from "../models/state";
 import { Task } from "../models/task";
+import { addFollowers } from "../services/add_followers";
 import { logEmail } from "../services/log_email";
 import { _t } from "../services/translation";
 
@@ -32,6 +33,18 @@ function onSelectProject(state: State, parameters: any) {
     if (!task) {
         return notify(_t("Could not create the task"));
     }
+
+    // Copy the email -- including its attachments -- onto the new task, the same
+    // way the "log email on the task" button does. task/create only stores the
+    // subject and body, so without this the email's attachments would be lost.
+    const logError = logEmail(task.id, "project.task", state.email);
+    if (!logError.code) {
+        State.setLoggingState(state.email.messageId, "tasks", task.id);
+    }
+
+    // Keep everyone who was on the email (sender, TO and CC) in the loop by
+    // adding them as followers of the task.
+    addFollowers(task.id, "project.task", state.email);
 
     task.projectName = project.name;
     state.partner.tasks.push(task);

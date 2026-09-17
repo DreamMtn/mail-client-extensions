@@ -1,4 +1,52 @@
-import { State } from "../models/state";
+/**
+ * Why the last call made by "postJsonRpc" did not return a result.
+ *
+ * A rejected access token and a database we momentarily could not reach both
+ * used to end up as the same "http_error_odoo", which is why the add-on kept
+ * asking everyone to log out and in for what were only transient failures.
+ * They need opposite fixes, so keep them apart.
+ */
+let _lastCallWasUnauthorized = false;
+
+/**
+ * True when Odoo refused the access token of the last call.
+ *
+ * Odoo never answers a 401: its "outlook" authentication method raises a
+ * `BadRequest("Access token invalid")` (`mail_plugin/models/ir_http.py`) which
+ * comes back either as an HTTP 400 or, because the plugin routes are JSON-RPC
+ * ones, as an HTTP 200 carrying an error payload. Both mention the token, which
+ * is what we look for. An "AccessError" is deliberately not matched: it means
+ * the user is correctly logged in but lacks the rights on a record, and must
+ * not log them out.
+ */
+function _isUnauthorized(responseCode: number, textResponse: string, dictResponse: any): boolean {
+    if (responseCode === 401 || responseCode === 403) {
+        return true;
+    }
+
+    // "Access token missing" when the header is absent, "Access token invalid"
+    // when the API key expired (30 days by default) or was revoked in Odoo.
+    if ((textResponse || "").indexOf("Access token ") >= 0) {
+        return true;
+    }
+
+    const error = dictResponse && dictResponse.error;
+    if (!error) {
+        return false;
+    }
+
+    const exceptionName = "" + ((error.data && error.data.name) || "");
+    return (
+        exceptionName.indexOf("AccessDenied") >= 0 || exceptionName.indexOf("SessionExpired") >= 0 || error.code === 100 // Odoo "Session expired"
+    );
+}
+
+/**
+ * Error code describing why the last Odoo call failed, to give to `ErrorMessage`.
+ */
+export function odooErrorCode(): string {
+    return _lastCallWasUnauthorized ? "session_expired" : "http_error_odoo";
+}
 
 /**
  * Make a JSON RPC call with the following parameters.
@@ -17,7 +65,13 @@ export function postJsonRpc(url: string, data = {}, headers = {}, options: any =
         contentType: "application/json",
         payload: JSON.stringify(data),
         headers: headers,
+        // Without this, any 4xx / 5xx throws and we can not read its status
+        // code, which makes an expired login indistinguishable from a database
+        // which is down.
+        muteHttpExceptions: true,
     };
+
+    _lastCallWasUnauthorized = false;
 
     try {
         const response = UrlFetchApp.fetch(url, httpOptions);
@@ -27,15 +81,22 @@ export function postJsonRpc(url: string, data = {}, headers = {}, options: any =
         }
 
         const responseCode = response.getResponseCode();
+        const textResponse = response.getContentText("UTF-8");
 
-        if (responseCode > 299 || responseCode < 200) {
-            return;
+        let dictResponse: any = null;
+        try {
+            dictResponse = JSON.parse(textResponse);
+        } catch {
+            // An HTML error page (proxy, maintenance page,...) and not an Odoo answer
         }
 
-        const textResponse = response.getContentText("UTF-8");
-        const dictResponse = JSON.parse(textResponse);
+        const isSuccess = responseCode >= 200 && responseCode <= 299 && dictResponse && dictResponse.result;
 
-        if (!dictResponse.result) {
+        // Only look for an authentication failure once we know the call failed,
+        // so that a valid answer is never thrown away because of what it happens
+        // to contain.
+        if (!isSuccess) {
+            _lastCallWasUnauthorized = _isUnauthorized(responseCode, textResponse, dictResponse);
             return;
         }
 

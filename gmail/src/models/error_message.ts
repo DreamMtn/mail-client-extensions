@@ -6,7 +6,8 @@ import { _t } from "../services/translation";
 
 const _ERROR_CODE_MESSAGES: Record<string, string> = {
     odoo: null, // Message is contained in the additional information
-    http_error_odoo: "Could not connect to database. Try to log out and in.",
+    http_error_odoo: "Could not reach the database. Please try again.",
+    session_expired: "Your session expired, please log in again.",
     insufficient_credit: "Not enough credits to enrich.",
     company_created: null,
     company_updated: null,
@@ -55,7 +56,7 @@ export class ErrorMessage {
         this.information = information;
         this.message = _t(_ERROR_CODE_MESSAGES[this.code]);
 
-        if (code === "http_error_odoo") {
+        if (code === "http_error_odoo" || code === "session_expired") {
             this.canContactOdooDatabase = false;
         }
     }

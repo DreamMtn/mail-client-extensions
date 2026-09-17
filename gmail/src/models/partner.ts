@@ -2,7 +2,7 @@ import { Company } from "./company";
 import { Lead } from "./lead";
 import { Task } from "./task";
 import { Project } from "./project";
-import { postJsonRpc, postJsonRpcCached } from "../utils/http";
+import { postJsonRpc, postJsonRpcCached, odooErrorCode } from "../utils/http";
 import { URLS } from "../const";
 import { ErrorMessage } from "../models/error_message";
 import { getAccessToken } from "src/services/odoo_auth";
@@ -174,7 +174,7 @@ export class Partner {
         );
 
         if (!response || !response.partner) {
-            const error = new ErrorMessage("http_error_odoo");
+            const error = new ErrorMessage(odooErrorCode());
             const partner = Partner.fromJson({ name: name, email: email });
             return [partner, null, false, false, error];
         }
@@ -224,7 +224,7 @@ export class Partner {
         const response = postJsonRpc(url, { search_term: query }, { Authorization: "Bearer " + odooAccessToken });
 
         if (!response || !response.partners) {
-            return [[], new ErrorMessage("http_error_odoo")];
+            return [[], new ErrorMessage(odooErrorCode())];
         }
 
         return [response.partners.map((values: any) => Partner.fromOdooResponse(values)), new ErrorMessage()];
@@ -251,7 +251,7 @@ export class Partner {
         const response = postJsonRpc(url, { partner_id: partnerId }, { Authorization: "Bearer " + odooAccessToken });
 
         if (!response) {
-            return [null, new ErrorMessage("http_error_odoo")];
+            return [null, new ErrorMessage(odooErrorCode())];
         }
 
         if (response.error) {

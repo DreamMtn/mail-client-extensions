@@ -34,19 +34,28 @@ function onSelectProject(state: State, parameters: any) {
         return notify(_t("Could not create the task"));
     }
 
-    // Copy the email -- including its attachments -- onto the new task, the same
-    // way the "log email on the task" button does. task/create only stores the
-    // subject and body, so without this the email's attachments would be lost.
-    const logError = logEmail(task.id, "project.task", state.email);
-    if (!logError.code) {
-        State.setLoggingState(state.email.messageId, "tasks", task.id);
+    // The task now exists in Odoo, so nothing below may throw: the user would
+    // get "Something went wrong when executing the add-on" and no way to know
+    // that their task was in fact created.
+    try {
+        // Copy the email -- including its attachments -- onto the new task, the same
+        // way the "log email on the task" button does. task/create only stores the
+        // subject and body, so without this the email's attachments would be lost.
+        const logError = logEmail(task.id, "project.task", state.email);
+        if (!logError.code) {
+            State.setLoggingState(state.email.messageId, "tasks", task.id);
+        }
+
+        // Keep everyone who was on the email (sender, TO and CC) in the loop by
+        // adding them as followers of the task.
+        addFollowers(task.id, "project.task", state.email);
+    } catch (error) {
+        console.error("Dream Mountain: could not log the email on task " + task.id + ": " + (error && error.stack));
     }
 
-    // Keep everyone who was on the email (sender, TO and CC) in the loop by
-    // adding them as followers of the task.
-    addFollowers(task.id, "project.task", state.email);
-
     task.projectName = project.name;
+    // The contact may have had no task at all until this one.
+    state.partner.tasks = state.partner.tasks || [];
     state.partner.tasks.push(task);
 
     const taskUrl =

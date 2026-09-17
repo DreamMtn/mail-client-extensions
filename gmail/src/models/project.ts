@@ -1,4 +1,4 @@
-import { postJsonRpc } from "../utils/http";
+import { postJsonRpc, odooErrorCode } from "../utils/http";
 import { URLS } from "../const";
 import { ErrorMessage } from "../models/error_message";
 import { getAccessToken } from "src/services/odoo_auth";
@@ -43,7 +43,7 @@ export class Project {
         const response = postJsonRpc(url, { search_term: query }, { Authorization: "Bearer " + odooAccessToken });
 
         if (!response) {
-            return [[], new ErrorMessage("http_error_odoo")];
+            return [[], new ErrorMessage(odooErrorCode())];
         }
 
         return [response.map((values: any) => Project.fromOdooResponse(values)), new ErrorMessage()];

@@ -1,5 +1,6 @@
 import { UI_ICONS } from "./icons";
 import { State } from "../models/state";
+import { _t } from "../services/translation";
 import { escapeHtml } from "../utils/html";
 
 /**
@@ -82,10 +83,22 @@ export function createKeyValueWidget(
 
 function _handleActionCall(event) {
     const functionName = event.parameters.functionName;
-    const state = State.fromJson(event.parameters.state);
-    const parameters = JSON.parse(event.parameters.parameters);
-    const inputs = event.formInputs;
-    return eval(functionName)(state, parameters, inputs);
+
+    try {
+        const state = State.fromJson(event.parameters.state);
+        const parameters = JSON.parse(event.parameters.parameters);
+        const inputs = event.formInputs;
+        return eval(functionName)(state, parameters, inputs);
+    } catch (error) {
+        // Anything thrown from here is turned by Gmail into a card which only
+        // says "Something went wrong when executing the add-on", replacing the
+        // whole add-on and telling neither the user nor us what broke. Report
+        // the reason instead and keep the current card on screen. The full
+        // stack goes to the Apps Script executions log.
+        const message = "" + ((error && error.message) || error);
+        console.error("Dream Mountain: " + functionName + " failed: " + ((error && error.stack) || message));
+        return notify(_t("Dream Mountain: %s", message));
+    }
 }
 
 /**

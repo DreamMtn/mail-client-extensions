@@ -3,6 +3,7 @@ import { Email } from "./email";
 import { Partner } from "./partner";
 import { Project } from "./project";
 import { Lead } from "./lead";
+import { Task } from "./task";
 import { ErrorMessage } from "./error_message";
 import { getAccessToken, getOdooAuthUrl } from "../services/odoo_auth";
 import { getOdooServerUrl } from "src/services/app_properties";
@@ -31,6 +32,8 @@ export class State {
     // Searched projects in the search view
     searchedProjects: Project[];
     canCreateProject: boolean;
+    // Results of the "Search tasks" view
+    searchedTasks: Task[];
     // Current error message displayed on the card
     error: ErrorMessage;
     // Used in the company card
@@ -88,7 +91,7 @@ export class State {
         // "isCompanyDescriptionUnfolded" is not copied
         // to re-fold the description if we go back / refresh
 
-        return new State(
+        const state = new State(
             partner,
             canCreatePartner,
             email,
@@ -98,6 +101,10 @@ export class State {
             canCreateProject,
             error,
         );
+        state.searchedTasks = values.searchedTasks
+            ? values.searchedTasks.map((taskValues: any) => Task.fromJson(taskValues))
+            : null;
+        return state;
     }
 
     /**

@@ -28,10 +28,12 @@ function onSearchProjectClick(state: State, parameters: any, inputs: any) {
 
 function onSelectProject(state: State, parameters: any) {
     const project = Project.fromJson(parameters.project);
-    const task = Task.createTask(state.partner.id, project.id, state.email.body, state.email.subject);
+    const [task, failure] = Task.createTask(state.partner.id, project.id, state.email.body, state.email.subject);
 
     if (!task) {
-        return notify(_t("Could not create the task"));
+        // Say why: "Could not create the task" alone gave no clue whether
+        // Odoo was unreachable, refused the login or rejected the values.
+        return notify(_t("Could not create the task (%s). Please try again.", failure));
     }
 
     // The task now exists in Odoo, so nothing below may throw: the user would

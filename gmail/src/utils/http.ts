@@ -9,6 +9,13 @@
 let _lastCallWasUnauthorized = false;
 
 /**
+ * Short, human readable reason of the last "postJsonRpc" failure (HTTP status,
+ * fetch exception, Odoo error,...), so a failed action can say *why* instead of
+ * a bare "Could not create the task".
+ */
+let _lastCallErrorDetail = "";
+
+/**
  * True when Odoo refused the access token of the last call.
  *
  * Odoo never answers a 401: its "outlook" authentication method raises a
@@ -49,9 +56,62 @@ export function odooErrorCode(): string {
 }
 
 /**
+ * Why the last call made by "postJsonRpc" failed, e.g. "HTTP 502" or
+ * "Odoo: partner_not_found". Empty if it succeeded.
+ */
+export function lastCallErrorDetail(): string {
+    return _lastCallErrorDetail;
+}
+
+/**
+ * HTTP statuses returned by the proxy in front of Odoo when the request never
+ * reached a worker, or reached one that died before committing (restart,
+ * worker recycled,...). Odoo rolled back, so the call is safe to send again,
+ * even when it creates a record.
+ */
+const _RETRYABLE_HTTP_CODES = [502, 503];
+
+/**
  * Make a JSON RPC call with the following parameters.
+ *
+ * options:
+ *     - returnRawResponse: return the HTTPResponse as is
+ *     - retry: send the request one more time if the first attempt failed on
+ *       a connection error or an HTTP 502 / 503. A timeout is never retried.
+ *       Use it for calls which are safe to repeat (searches, reads).
+ *     - retryOnGatewayError: only retry on HTTP 502 / 503, which guarantee
+ *       that Odoo did not commit anything. For calls creating a record: a
+ *       connection dropped after the request was sent could otherwise create
+ *       it twice.
  */
 export function postJsonRpc(url: string, data = {}, headers = {}, options: any = {}) {
+    let result = _postJsonRpcOnce(url, data, headers, options);
+    const shouldRetry =
+        result === undefined &&
+        ((options.retry && _lastCallWasRetryable) || (options.retryOnGatewayError && _lastCallWasGatewayError));
+    if (shouldRetry) {
+        console.warn("Dream Mountain: retrying " + _endpoint(url) + " after: " + _lastCallErrorDetail);
+        Utilities.sleep(1000);
+        result = _postJsonRpcOnce(url, data, headers, options);
+    }
+    if (result === undefined && !options.returnRawResponse) {
+        console.error("Dream Mountain: " + _endpoint(url) + " failed: " + _lastCallErrorDetail);
+    }
+    return result;
+}
+
+let _lastCallWasRetryable = false;
+let _lastCallWasGatewayError = false;
+
+/**
+ * Path of the URL, to log which endpoint failed without the server name.
+ */
+function _endpoint(url: string): string {
+    const match = (url || "").match(/^https?:\/\/[^/]+(\/.*)?$/);
+    return (match && match[1]) || url;
+}
+
+function _postJsonRpcOnce(url: string, data = {}, headers = {}, options: any = {}) {
     // Make a valid "Odoo RPC" call
     data = {
         id: 0,
@@ -72,6 +132,9 @@ export function postJsonRpc(url: string, data = {}, headers = {}, options: any =
     };
 
     _lastCallWasUnauthorized = false;
+    _lastCallWasRetryable = false;
+    _lastCallWasGatewayError = false;
+    _lastCallErrorDetail = "";
 
     try {
         const response = UrlFetchApp.fetch(url, httpOptions);
@@ -97,13 +160,36 @@ export function postJsonRpc(url: string, data = {}, headers = {}, options: any =
         // to contain.
         if (!isSuccess) {
             _lastCallWasUnauthorized = _isUnauthorized(responseCode, textResponse, dictResponse);
+            _lastCallWasGatewayError = _RETRYABLE_HTTP_CODES.indexOf(responseCode) >= 0;
+            _lastCallWasRetryable = _lastCallWasGatewayError;
+            _lastCallErrorDetail = _describeFailure(responseCode, dictResponse);
             return;
         }
 
+        // Some plugin routes answer a "result" carrying an error code instead of
+        // raising (e.g. task/create returns {error: "partner_not_found"}).
+        if (dictResponse.result.error) {
+            _lastCallErrorDetail = "Odoo: " + dictResponse.result.error;
+        }
+
         return dictResponse.result;
-    } catch {
+    } catch (error) {
+        // UrlFetchApp throws on DNS / connection failures and on its own
+        // timeout. Only the former are known not to have reached Odoo.
+        const message = "" + ((error && error.message) || error);
+        _lastCallErrorDetail = message;
+        _lastCallWasRetryable = !/timeout|timed out/i.test(message);
         return;
     }
+}
+
+function _describeFailure(responseCode: number, dictResponse: any): string {
+    const error = dictResponse && dictResponse.error;
+    if (error) {
+        const data = error.data || {};
+        return "Odoo: " + (data.message || error.message || "error") + (data.name ? " (" + data.name + ")" : "");
+    }
+    return "HTTP " + responseCode;
 }
 
 /**

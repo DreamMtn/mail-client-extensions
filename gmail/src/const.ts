@@ -15,6 +15,8 @@ export const URLS: Record<string, string> = {
     SEARCH_PROJECT: "/mail_plugin/project/search",
     CREATE_PROJECT: "/mail_plugin/project/create",
     CREATE_TASK: "/mail_plugin/task/create",
+    // Provided by our own "dms_mail_plugin" Odoo module, not by stock Odoo.
+    SEARCH_TASK: "/dms_mail_plugin/task/search",
     // IAP
     IAP_COMPANY_ENRICHMENT: "https://iap-services.odoo.com/iap/mail_extension/enrich",
 };

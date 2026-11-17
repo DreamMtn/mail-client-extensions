@@ -9,6 +9,7 @@ import { State } from "../models/state";
 import { logEmail } from "../services/log_email";
 import { _t } from "../services/translation";
 import { truncate } from "../utils/format";
+import { addSearchTasksInput } from "./search_tasks";
 
 function onCreateTask(state: State) {
     return buildCreateTaskView(state);
@@ -45,8 +46,18 @@ export function buildTasksView(state: State, card: Card) {
     const cids = state.odooCompaniesParameter;
 
     if (state.partner.id) {
+        // Customers with many open tasks make the list below long to scroll:
+        // let the user find the task to log the email on by name or number.
+        const searchAction = addSearchTasksInput(state, tasksSection, "", true);
+
         tasksSection.addWidget(
-            CardService.newTextButton().setText(_t("Create")).setOnClickAction(actionCall(state, onCreateTask.name)),
+            CardService.newButtonSet()
+                .addButton(CardService.newTextButton().setText(_t("Search")).setOnClickAction(searchAction))
+                .addButton(
+                    CardService.newTextButton()
+                        .setText(_t("Create"))
+                        .setOnClickAction(actionCall(state, onCreateTask.name)),
+                ),
         );
 
         for (let task of tasks) {
